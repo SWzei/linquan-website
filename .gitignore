@@ -1,0 +1,85 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+**/node_modules/
+
+# =========================
+# Build outputs
+# =========================
+dist/
+**/dist/
+coverage/
+**/coverage/
+.nyc_output/
+
+# =========================
+# Environment / secrets
+# =========================
+.env*
+!**/.env*.example
+secrets/
+*.key
+*.private.pem
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+
+# =========================
+# Runtime data / uploads
+# A directory rule matches the same name at any project depth.
+# =========================
+uploads/
+
+# SQLite local databases and sidecars
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db-journal
+*.sqlite-journal
+*.sqlite3-journal
+
+# Test artifacts / temporary validation outputs
+test-artifacts/
+.tmp-ui-e2e/
+.cache/
+cache/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Local-only project documentation (root directory only)
+/docs/
+
+# =========================
+# Logs
+# =========================
+*.log
+*.pid
+*.pid.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# OS / editor files
+# =========================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*.code-workspace
+.history/
+*.swp
+*.swo
+*~

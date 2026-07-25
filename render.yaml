@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: linquan-website
+    runtime: node
+    plan: free
+    rootDir: backend
+    # Schema migrations are an explicit operator step on the free plan, so a
+    # Git push must not race a required database migration.
+    autoDeployTrigger: off
+    buildCommand: npm ci && npm --prefix ../frontend ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TZ
+        value: UTC
+      - key: HOST
+        value: 0.0.0.0
+      - key: SERVE_FRONTEND
+        value: true
+      - key: DATABASE_URL
+        sync: false
+      - key: UPLOAD_ROOT
+        value: uploads
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false

@@ -1,0 +1,49 @@
+{
+  "name": "linquan-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "build": "npm --prefix ../frontend run build",
+    "start": "node src/server.js",
+    "start:pm2": "pm2 start ecosystem.config.cjs --env production --update-env",
+    "reload:pm2": "pm2 reload ecosystem.config.cjs --update-env",
+    "db:init": "node src/scripts/initDb.js",
+    "db:migrate:access": "node scripts/migrateAccessArchitecture.mjs",
+    "db:migrate:legacy": "node migrate.cjs",
+    "maintainer:provision": "node scripts/provisionMaintainer.mjs",
+    "admin:transition": "node scripts/transitionLegacyAdministrator.mjs",
+    "seed:test-members": "node src/scripts/seedTestMembers.js",
+    "test:smoke": "node scripts/smokeTest.mjs",
+    "test:modules:light": "node scripts/lightModuleValidation.mjs",
+    "test:compat:backup": "node scripts/validateBackupCompatibility.mjs",
+    "test:postgres:timeouts": "node scripts/postgresTimeoutValidation.mjs",
+    "test:security-guards": "node scripts/securityGuardValidation.mjs",
+    "test:clean-start": "node scripts/cleanStartValidation.mjs",
+    "test:targeted-defects": "node scripts/targetedDefectValidation.mjs",
+    "test:postgres:targeted": "node scripts/postgresTargetedValidation.mjs",
+    "test:sqlite:upgrade": "node scripts/sqliteUpgradeValidation.mjs"
+  },
+  "engines": {
+    "node": ">=20 <25",
+    "npm": ">=10"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "express-rate-limit": "^8.6.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.2.0",
+    "nodemailer": "^9.0.3",
+    "pg": "^8.19.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

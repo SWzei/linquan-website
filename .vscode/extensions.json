@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "editorconfig.editorconfig",
+    "ecmel.vscode-html-css",
+    "pranaygp.vscode-css-peek",
+    "ritwickdey.LiveServer",
+    "humao.rest-client",
+    "mikestead.dotenv",
+    "qwtel.sqlite-viewer",
+    "eamodio.gitlens",
+    "Vue.volar"
+  ]
+}

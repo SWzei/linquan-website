@@ -1,0 +1,38 @@
+@baseUrl = http://localhost:4000/api
+@token =
+
+### Health
+GET {{baseUrl}}/health
+
+### Register member
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "studentNumber": "20260001",
+  "email": "member1@example.com",
+  "password": "Passw0rd!",
+  "displayName": "Member One"
+}
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "credential": "20260001",
+  "password": "Passw0rd!"
+}
+
+### Get scheduling slots
+GET {{baseUrl}}/scheduling/slots
+Authorization: Bearer {{token}}
+
+### Submit preferences
+POST {{baseUrl}}/scheduling/preferences
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "slotIds": [1, 2, 3, 4]
+}
