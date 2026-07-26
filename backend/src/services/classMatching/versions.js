@@ -14,7 +14,16 @@ function mapBoolean(value) {
 function escapeCsv(value) {
   const text = value === undefined || value === null ? '' : String(value);
   if (/[",\n]/.test(text)) {
-    return `"${text.replaceAll('"', '""')}"`;
+    // Mitigate CSV formula injection by prefixing formula trigger characters
+    // with a single quote (OWASP recommendation).
+    const escaped = text.replaceAll('"', '""');
+    if (/^[=+\-@\t\r]/.test(escaped)) {
+      return `"'${escaped}"`;
+    }
+    return `"${escaped}"`;
+  }
+  if (/^[=+\-@\t\r]/.test(text)) {
+    return `'${text}`;
   }
   return text;
 }
