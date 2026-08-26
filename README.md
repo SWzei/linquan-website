@@ -1,4 +1,4 @@
-# NJU 林泉钢琴社网站
+# NJU Linquan Piano Club Website
 
 Complete Linquan piano club website: Vue 3 frontend, Express backend, SQLite for local
 development, PostgreSQL for production.
