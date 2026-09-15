@@ -1,11 +1,12 @@
 import HttpError from '../../utils/httpError.js';
-import { clampCapacity, loadAvailabilityMap, loadParticipantProfile, loadParticipantProfiles, loadRankingsMap } from './common.js';
+import { directTargets, clampCapacity, loadAvailabilityMap, loadParticipantProfile, loadParticipantProfiles, loadRankingsMap } from './common.js';
 import {
   createAllocationState,
   hasSharedAvailability,
   loadClassAllocationContext,
   releaseMatchRoom,
-  reserveMatchRoom
+  reserveMatchRoom,
+  sharedAvailabilityTimes
 } from './allocation.js';
 
 function buildRankingIndex(rankings) {
@@ -36,6 +37,10 @@ export function loadMatchingContext(termId) {
   const profiles = loadParticipantProfiles(termId);
   const availabilityMap = loadAvailabilityMap(termId);
   const rankings = loadRankingsMap(termId);
+  // Direct selections share preference storage, but do not constitute rankings.
+  for (const profile of profiles) {
+    if (profile.matchingMode !== 'ranking') rankings.delete(profile.userId);
+  }
   const rankingIndex = buildRankingIndex(rankings);
   const profileByUserId = new Map(profiles.map((item) => [item.userId, item]));
   const allocation = loadClassAllocationContext(termId);
@@ -76,7 +81,7 @@ export function buildLockedPairs(context, fixedMatchesByStudent = new Map(), fix
     if (teacher.participantType !== 'teacher' || teacher.matchingMode !== 'direct') {
       continue;
     }
-    if (teacher.directTargetUserId !== student.userId) {
+    if (!directTargets(teacher).includes(Number(student.userId))) {
       continue;
     }
     if (teacher.qualificationStatus !== 'approved') {
@@ -207,7 +212,7 @@ function isExistingMatchEligible(match, context) {
     return student.matchingMode === 'direct'
       && teacher.matchingMode === 'direct'
       && Number(student.directTargetUserId) === Number(teacher.userId)
-      && Number(teacher.directTargetUserId) === Number(student.userId);
+      && directTargets(teacher).includes(Number(student.userId));
   }
   if (match.matchType === 'algorithm') {
     return student.matchingMode === 'ranking' && teacher.matchingMode === 'ranking';
@@ -275,7 +280,8 @@ export function runStableMatching(termId, fixedMatches, providedContext = null) 
   }
 
   const studentProposalIndex = new Map();
-  const unmatchedStudents = eligibleStudents.map((item) => item.userId);
+  const feasibleTimeCount = userId => new Set((studentPreferenceMap.get(userId) || []).flatMap(teacherId => sharedAvailabilityTimes(userId, teacherId, context.allocation))).size;
+  const unmatchedStudents = eligibleStudents.map((item) => item.userId).sort((a, b) => feasibleTimeCount(a) - feasibleTimeCount(b) || a - b);
 
   while (unmatchedStudents.length > 0) {
     const studentUserId = unmatchedStudents.shift();

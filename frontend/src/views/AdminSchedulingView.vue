@@ -44,6 +44,8 @@
       <p class="subtle" v-else>{{ t('admin.noDraftSchedule') }}</p>
 
       <div class="row controls">
+        <button class="btn warn" :disabled="!draftReady || moving" @click="clearSchedule('proposed')">{{ t('admin.clearDraft') }}</button>
+        <button class="btn warn" :disabled="!currentSemester || moving" @click="clearSchedule('published')">{{ t('admin.withdrawPublished') }}</button>
         <button class="btn" :disabled="!currentSemester" @click="runSchedule">{{ t('admin.runScheduleWithWarning') }}</button>
         <button class="btn secondary" :disabled="!currentSemester" @click="updateSchedule">
           {{ t('admin.updateSchedule') }}
@@ -1022,6 +1024,19 @@ async function updateSchedule() {
   } catch (err) {
     setError(err);
   }
+}
+
+async function clearSchedule(scope) {
+  if (!currentSemester.value || !window.confirm(t(scope === 'proposed' ? 'admin.confirmClearDraft' : 'admin.confirmWithdrawPublished'))) return;
+  moving.value = true;
+  try {
+    const { data } = await api.post('/admin/scheduling/clear', { semesterId: currentSemester.value.id, scope });
+    historyStack.value = [];
+    redoStack.value = [];
+    setMessage(t('admin.scheduleCleared', { count: data.clearedAssignments }));
+    await loadDraftSchedule();
+  } catch (err) { setError(err); }
+  finally { moving.value = false; }
 }
 
 async function publishSchedule() {

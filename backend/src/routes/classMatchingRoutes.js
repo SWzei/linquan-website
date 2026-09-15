@@ -52,6 +52,7 @@ const profileSchema = z.object({
   skillSpecialization: z.string().trim().max(1000).optional().nullable(),
   feeExpectation: z.string().trim().max(128).optional().nullable(),
   capacity: z.number().int().positive().max(100).optional().nullable(),
+  directTargetUserIds: z.array(z.number().int().positive()).max(100).optional(),
   directTargetUserId: z.number().int().positive().optional().nullable()
 });
 
@@ -66,6 +67,7 @@ const rankingSchema = z.object({
 });
 
 const qualificationSchema = z.object({
+  capacity: z.number().int().min(1).max(100).optional(),
   status: z.enum(['pending', 'approved', 'rejected']),
   feedback: z.string().trim().max(1000).optional().nullable()
 });
@@ -131,7 +133,8 @@ router.put('/class-matching/profile', (req, res, next) => {
       skillSpecialization: req.body.skillSpecialization ?? undefined,
       feeExpectation: req.body.feeExpectation ?? undefined,
       capacity: optionalNumber(req.body.capacity),
-      directTargetUserId: optionalNumber(req.body.directTargetUserId)
+      directTargetUserIds: req.body.directTargetUserIds,
+      directTargetUserId: req.body.directTargetUserId === null ? null : optionalNumber(req.body.directTargetUserId)
     });
     const termId = resolveClassMatchingTermId(db, parsed.termId);
     const profile = saveUserClassMatchingProfile({ termId, userId: req.user.id, input: parsed });
@@ -245,6 +248,7 @@ router.get('/admin/class-matching/terms/:termId(\\d+)/overview', (req, res, next
 router.patch('/admin/class-matching/terms/:termId(\\d+)/teachers/:teacherUserId(\\d+)/qualification', (req, res, next) => {
   try {
     const parsed = qualificationSchema.parse({
+      capacity: req.body.capacity,
       status: req.body.status,
       feedback: req.body.feedback ?? undefined
     });
@@ -252,6 +256,7 @@ router.patch('/admin/class-matching/terms/:termId(\\d+)/teachers/:teacherUserId(
       updateTeacherQualification({
         termId: Number(req.params.termId),
         teacherUserId: Number(req.params.teacherUserId),
+        capacity: parsed.capacity,
         status: parsed.status,
         feedback: parsed.feedback,
         adminId: req.user.id

@@ -1,4 +1,5 @@
 import db from '../../config/db.js';
+import { diagnoseUnmatched } from './diagnostics.js';
 import HttpError from '../../utils/httpError.js';
 import { currentUtcIsoString } from '../../utils/dateTime.js';
 import {
@@ -94,7 +95,7 @@ export function getUserClassMatchingOverview({ termId, userId }) {
       : null,
     slots: loadTermSlots(termId, userId),
     availabilitySlotIds: loadAvailabilityIds(termId, userId),
-    rankingTargetUserIds: loadRankingIds(termId, userId),
+    rankingTargetUserIds: participantProfile?.matchingMode === 'ranking' ? loadRankingIds(termId, userId) : [],
     candidates: buildCandidateLists(termId, userId),
     currentVersion: currentMatches.version,
     matches: myMatches
@@ -121,6 +122,7 @@ export function getAdminClassMatchingOverview(termId) {
   return {
     term,
     profiles,
+    unmatchedDiagnostics: diagnoseUnmatched(termId, profiles, matches),
     qualificationQueue: profiles.filter((item) => item.participantType === 'teacher'),
     currentVersion,
     matches,
@@ -169,7 +171,7 @@ export function updateClassMatchingTerm(payload) {
   return tx();
 }
 
-export function updateTeacherQualification({ termId, teacherUserId, status, feedback, adminId }) {
+export function updateTeacherQualification({ termId, teacherUserId, status, feedback, adminId, capacity }) {
   const profile = loadParticipantProfile(termId, teacherUserId);
   if (!profile || profile.participantType !== 'teacher') {
     throw new HttpError(404, 'Teacher profile not found in this term');
@@ -180,9 +182,9 @@ export function updateTeacherQualification({ termId, teacherUserId, status, feed
   const nowUtc = currentUtcIsoString();
   db.prepare(
     `UPDATE class_matching_profiles
-     SET qualification_status = ?, qualification_feedback = ?, reviewed_by = ?, reviewed_at = ?, updated_at = ?
+     SET capacity = COALESCE(?, capacity), qualification_status = ?, qualification_feedback = ?, reviewed_by = ?, reviewed_at = ?, updated_at = ?
      WHERE term_id = ? AND user_id = ?`
-  ).run(status, feedback || null, adminId || null, nowUtc, nowUtc, termId, teacherUserId);
+  ).run(capacity ?? null, status, feedback || null, adminId || null, nowUtc, nowUtc, termId, teacherUserId);
 
   return loadParticipantProfile(termId, teacherUserId);
 }

@@ -115,6 +115,12 @@
         </article>
       </div>
 
+      <div v-if="overview.unmatchedDiagnostics?.length">
+        <h3>{{ t('adminClassMatching.unmatchedTitle') }}</h3>
+        <p class="subtle" v-for="item in overview.unmatchedDiagnostics" :key="item.userId">
+          {{ item.displayName }}：{{ item.reasons.map(reason => t('adminClassMatching.reason_' + reason)).join('；') }}
+        </p>
+      </div>
       <div class="row action-row" v-if="selectedTermId">
         <button class="btn" :disabled="processingAction" @click="generateMatches">
           {{ generating ? t('common.loading') : t('adminClassMatching.generateMatches') }}
@@ -172,7 +178,7 @@
             </div>
             <div class="field field-half">
               <label>{{ t('adminClassMatching.teacherCapacity') }}</label>
-              <input :value="activeTeacherProfile.capacity || 1" readonly />
+              <input type="number" min="1" max="100" v-model.number="qualificationDrafts[activeTeacherProfile.userId].capacity" />
             </div>
           </div>
           <div class="field">
@@ -508,6 +514,7 @@ function shiftVersionHistory(direction) {
 function resetOverview() {
   overview.term = null;
   overview.profiles = [];
+  overview.unmatchedDiagnostics = [];
   overview.qualificationQueue = [];
   overview.currentVersion = null;
   overview.matches = [];
@@ -525,6 +532,7 @@ function fillQualificationDrafts() {
   });
   for (const teacher of teacherProfiles.value) {
     qualificationDrafts[teacher.userId] = {
+      capacity: Number(teacher.capacity || 1),
       status: teacher.qualificationStatus,
       feedback: teacher.qualificationFeedback || ''
     };
@@ -581,6 +589,7 @@ async function loadOverview() {
     const { data } = await api.get(`/admin/class-matching/terms/${selectedTermId.value}/overview`);
     overview.term = data.term || null;
     overview.profiles = data.profiles || [];
+    overview.unmatchedDiagnostics = data.unmatchedDiagnostics || [];
     overview.qualificationQueue = data.qualificationQueue || [];
     overview.currentVersion = data.currentVersion || null;
     overview.matches = data.matches || [];
@@ -668,6 +677,7 @@ async function saveQualification(teacher) {
   qualificationSavingUserId.value = teacher.userId;
   try {
     await api.patch(`/admin/class-matching/terms/${selectedTermId.value}/teachers/${teacher.userId}/qualification`, {
+      capacity: draft.capacity,
       status: draft.status,
       feedback: draft.feedback
     });
