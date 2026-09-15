@@ -129,7 +129,13 @@
 
         <div class="field" v-if="form.matchingMode === 'direct'">
           <label>{{ t('classMatching.directTarget') }}</label>
-          <select v-model.number="form.directTargetUserId">
+          <div v-if="isTeacher">
+            <label v-for="item in directCandidates" :key="item.userId" style="display: block">
+              <input type="checkbox" :value="item.userId" v-model="form.directTargetUserIds" />
+              {{ item.displayName }} ({{ item.studentNumber }})
+            </label>
+          </div>
+          <select v-else v-model.number="form.directTargetUserId">
             <option :value="0">{{ t('classMatching.directTargetNone') }}</option>
             <option v-for="item in directCandidates" :key="item.userId" :value="item.userId">
               {{ item.displayName }} ({{ item.studentNumber }})
@@ -184,7 +190,10 @@
       <template v-if="form.matchingMode === 'direct'">
         <div class="direct-box">
           <p class="subtle">{{ t('classMatching.directCurrentTarget') }}</p>
-          <strong v-if="selectedDirectCandidate">
+          <strong v-if="isTeacher && form.directTargetUserIds.length">
+            {{ form.directTargetUserIds.map(id => candidateMap.get(id)?.displayName || id).join("、") }}
+          </strong>
+          <strong v-else-if="selectedDirectCandidate">
             {{ selectedDirectCandidate.displayName }} ({{ selectedDirectCandidate.studentNumber }})
           </strong>
           <strong v-else>{{ t('classMatching.directTargetUnset') }}</strong>
@@ -340,6 +349,7 @@ const form = reactive({
   skillSpecialization: '',
   feeExpectation: '',
   capacity: 1,
+  directTargetUserIds: [],
   directTargetUserId: 0
 });
 
@@ -378,7 +388,7 @@ const rankingCandidateMap = computed(() => {
   }
   return map;
 });
-const directCandidates = computed(() => candidateList.value);
+const directCandidates = computed(() => candidateList.value.filter(item => item.matchingMode === 'direct'));
 const availableRankingCandidates = computed(() =>
   rankingCandidateList.value.filter((item) => !rankingTargetUserIds.value.includes(item.userId))
 );
@@ -401,6 +411,7 @@ function resetForm(profile = null) {
   form.feeExpectation = profile?.feeExpectation || '';
   form.capacity = Number(profile?.capacity || 1);
   form.directTargetUserId = Number(profile?.directTargetUserId || 0);
+  form.directTargetUserIds = profile?.directTargetUserIds || (form.directTargetUserId ? [form.directTargetUserId] : []);
 }
 
 function slotAt(day, hour) {
@@ -562,6 +573,7 @@ async function saveProfile() {
       skillSpecialization: isTeacher.value ? form.skillSpecialization : null,
       feeExpectation: isTeacher.value ? form.feeExpectation : null,
       capacity: isTeacher.value ? Number(form.capacity || 1) : null,
+      directTargetUserIds: form.matchingMode === 'direct' ? (isTeacher.value ? form.directTargetUserIds : (form.directTargetUserId ? [Number(form.directTargetUserId)] : [])) : [],
       directTargetUserId: form.matchingMode === 'direct' ? Number(form.directTargetUserId || 0) || null : null
     });
     showSuccess(t('classMatching.profileSaved'));

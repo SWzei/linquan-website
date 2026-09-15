@@ -1,4 +1,5 @@
 import express from 'express';
+import { clearSchedule } from '../services/clearSchedule.js';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -2918,6 +2919,21 @@ router.patch('/admin/scheduling/assignments/:assignmentId', (req, res, next) => 
       return res.status(400).json({ message: 'Invalid assignment payload', details: err.issues });
     }
     return next(err);
+  }
+});
+
+router.post('/admin/scheduling/clear', (req, res, next) => {
+  try {
+    const parsed = z.object({ semesterId: z.number().int().positive(), scope: z.enum(['proposed', 'published']) }).parse(req.body);
+    const result = db.transaction(() => {
+      const cleared = clearSchedule({ ...parsed, adminId: req.user.id });
+      if (cleared.batchId) recordScheduleOperation({ batchId: cleared.batchId, semesterId: parsed.semesterId, operationType: 'clear_schedule', payload: cleared, adminId: req.user.id });
+      return cleared;
+    })();
+    res.json(result);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: 'Invalid clear schedule payload', details: err.issues });
+    next(err);
   }
 });
 

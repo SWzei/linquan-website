@@ -225,6 +225,19 @@ export function loadBaseProfile(userId) {
   );
 }
 
+// Direct mode uses the existing preference rows as an unordered selection set.
+// The scalar remains a fallback for profiles saved before multi-selection existed.
+export function directTargets(profile) {
+  if (!profile || profile.matchingMode !== 'direct') return [];
+  return profile.directTargetUserIds ?? (profile.directTargetUserId ? [Number(profile.directTargetUserId)] : []);
+}
+
+function attachDirectTargets(profile) {
+  if (!profile) return null;
+  const ids = profile.matchingMode === 'direct' ? loadRankingIds(profile.termId, profile.userId) : [];
+  return { ...profile, directTargetUserIds: ids.length ? ids : directTargets(profile) };
+}
+
 export function loadParticipantProfiles(termId) {
   return db
     .prepare(
@@ -265,11 +278,11 @@ export function loadParticipantProfiles(termId) {
     .map((item) => ({
       ...item,
       capacity: item.participantType === 'teacher' ? clampCapacity(item.capacity) : null
-    }));
+    })).map(attachDirectTargets);
 }
 
 export function loadParticipantProfile(termId, userId) {
-  return (
+  return attachDirectTargets(
     db
       .prepare(
         `SELECT
@@ -511,6 +524,7 @@ export function assertValidRankingTargets(termId, userId, participantType, targe
 }
 
 export function saveProfile({ termId, userId, input }) {
+  input = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
   getTerm(termId);
   const nowUtc = currentUtcIsoString();
   const current = loadParticipantProfile(termId, userId);
@@ -523,25 +537,19 @@ export function saveProfile({ termId, userId, input }) {
     throw new HttpError(400, 'matchingMode must be direct or ranking');
   }
 
-  const directTargetUserId =
-    Object.prototype.hasOwnProperty.call(input, 'directTargetUserId')
-      ? (input.directTargetUserId ? Number(input.directTargetUserId) : null)
-      : current?.directTargetUserId || null;
-  validateOppositeTarget(termId, userId, nextParticipantType, directTargetUserId);
-
-  if (nextMatchingMode === 'ranking') {
-    const incomingDirectReference = db.prepare(
-      `SELECT user_id AS "userId"
-       FROM class_matching_profiles
-       WHERE term_id = ? AND matching_mode = 'direct' AND direct_target_user_id = ?
-       LIMIT 1`
-    ).get(termId, userId);
-    if (incomingDirectReference) {
-      throw new HttpError(
-        409,
-        'Cannot switch to ranking mode while another direct participant targets this profile'
-      );
-    }
+  const targetIds = nextMatchingMode !== 'direct' ? [] : [...new Set(
+    input.directTargetUserIds !== undefined ? input.directTargetUserIds.map(Number)
+      : input.directTargetUserId !== undefined ? (input.directTargetUserId ? [Number(input.directTargetUserId)] : [])
+      : directTargets(current)
+  )];
+  if (targetIds.length > (nextParticipantType === 'student' ? 1 : 100)) {
+    throw new HttpError(400, 'Students may select one teacher; teachers may select up to 100 students');
+  }
+  for (const id of targetIds) validateOppositeTarget(termId, userId, nextParticipantType, id);
+  const directTargetUserId = targetIds[0] || null;
+  if (nextMatchingMode === 'ranking' || (current && current.participantType !== nextParticipantType)) {
+    const incoming = loadParticipantProfiles(termId).some(profile => profile.userId !== userId && directTargets(profile).includes(Number(userId)));
+    if (incoming) throw new HttpError(409, 'Cannot change mode or role while another direct participant targets this profile');
   }
 
   const qualificationStatus = nextParticipantType === 'teacher' ? current?.qualificationStatus || 'pending' : 'pending';
@@ -565,8 +573,14 @@ export function saveProfile({ termId, userId, input }) {
       : null
   };
   const participantTypeChanged = Boolean(current && current.participantType !== nextParticipantType);
-  const shouldClearRankings = nextMatchingMode === 'direct' || participantTypeChanged;
+  const shouldClearRankings = nextMatchingMode === 'direct' || participantTypeChanged || (current && current.matchingMode !== nextMatchingMode);
 
+  const persistDirectTargets = () => {
+    // A single target continues to use the legacy scalar; only teacher lists need rows.
+    if (nextMatchingMode !== 'direct' || nextParticipantType !== 'teacher' || targetIds.length < 2) return;
+    const insert = db.prepare('INSERT INTO class_matching_rankings (term_id, user_id, target_user_id, rank_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+    targetIds.forEach((id, index) => insert.run(termId, userId, id, index + 1, nowUtc, nowUtc));
+  };
   const tx = db.transaction(() => {
     if (current) {
       db.prepare(
@@ -597,6 +611,7 @@ export function saveProfile({ termId, userId, input }) {
           db.prepare('DELETE FROM class_matching_rankings WHERE term_id = ? AND target_user_id = ?').run(termId, userId);
         }
       }
+      persistDirectTargets();
       return;
     }
 
@@ -626,6 +641,7 @@ export function saveProfile({ termId, userId, input }) {
     if (shouldClearRankings) {
       db.prepare('DELETE FROM class_matching_rankings WHERE term_id = ? AND user_id = ?').run(termId, userId);
     }
+    persistDirectTargets();
   });
   tx();
 
